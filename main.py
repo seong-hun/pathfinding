@@ -33,6 +33,9 @@ class Box:
         self.neighbors = []
         self.prior = None
 
+    def __repr__(self):
+        return f"Box({self.i, self.j}, {self.type.name})"
+
     @property
     def type(self):
         return self._type
@@ -41,7 +44,7 @@ class Box:
     def type(self, new_type):
         # Banned operation
         if new_type.unique and self._type is not TYPES.DEFAULT:
-            print(f"Cannot allocate {new_type} for {self._type} box")
+            print(f"Cannot allocate {new_type.name} for {self._type.name} box")
             return
 
         if new_type.algorithm and self._type.immutable:
@@ -90,6 +93,7 @@ class Game:
     def reset(self):
         for box in self.grid.ravel():
             box.type = TYPES.DEFAULT
+            box.neighbors = []
 
     def draw(self):
         for box in self.grid.ravel():
@@ -113,7 +117,7 @@ class Game:
         return self.grid[i][j]
 
 
-class Dijkstra:
+class Algorithm:
     def __init__(self, game):
         self.game = game
         self.reset()
@@ -123,6 +127,8 @@ class Dijkstra:
         self.path = []
         self.visited = []
 
+
+class Dijkstra(Algorithm):
     def run(self):
         self.queue.append(TYPES.START.box)
         finished = False
@@ -136,12 +142,7 @@ class Dijkstra:
 
             if current_box is TYPES.TARGET.box:
                 finished = True
-
-                # Draw Path
-                while current_box.prior is not TYPES.START.box:
-                    self.path.append(current_box.prior)
-                    current_box.prior.type = TYPES.PATH
-                    current_box = current_box.prior
+                self.draw_path(current_box)
             else:
                 for neighbor in current_box.neighbors:
                     if neighbor not in self.visited and neighbor not in self.queue:
@@ -153,6 +154,12 @@ class Dijkstra:
             print("No solution found")
 
         print("Exiting Dijkstra algorithm")
+
+    def draw_path(self, current_box):
+        while current_box.prior is not TYPES.START.box:
+            self.path.append(current_box.prior)
+            current_box.prior.type = TYPES.PATH
+            current_box = current_box.prior
 
 
 def main():
