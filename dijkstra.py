@@ -3,101 +3,164 @@ from dataclasses import dataclass
 import numpy as np
 import pygame
 
-window_width = 400
-window_height = 400
-columns = 20
-rows = 20
-
-box_width = window_width // columns
-box_height = window_height // rows
-
-# PYGAME INITIALIZE
-pygame.init()
-window = pygame.display.set_mode((window_width, window_height))
-clock = pygame.time.Clock()
-
 
 @dataclass
-class WALL:
-    color = (120, 120, 12)
+class Type:
+    name: str
+    color: tuple
+    unique: bool = False
+    box = None
+
+
+class TYPES:
+    DEFAULT = Type("DEFAULT", (80, 80, 80))
+    WALL = Type("WALL", (120, 120, 120))
+    START = Type("START", (0, 200, 200), unique=True)
+    TARGET = Type("TARGET", (200, 200, 0), unique=True)
+    QUEUED = Type("QUEUED", (200, 0, 0))
+    VISITED = Type("VISITED", (0, 200, 0))
+    PATH = Type("PATH", (0, 0, 200))
 
 
 class Box:
-    STATE = States()
-    BOXCOLORS = {
-        "default": (80, 80, 80),
-        "queued": (200, 0, 0),
-        "visited": (0, 200, 0),
-        "path": (0, 0, 200),
-        "wall": (120, 120, 120),
-        "start": (0, 200, 200),
-        "target": (200, 200, 0),
-    }
-
     def __init__(self, i, j):
         self.i = i
         self.j = j
+        self._type = TYPES.DEFAULT
 
-        self.tags = []
         self.neighbors = []
         self.prior = None
 
-    def draw(self):
-        color = self.BOXCOLORS["default"]
-        for key, value in self.BOXCOLORS.items():
-            if key in self.tags:
-                color = value
+    @property
+    def type(self):
+        return self._type
 
-        pygame.draw.rect(
-            window,
-            color,
-            (
-                self.i * box_width,
-                self.j * box_height,
-                box_width - 2,
-                box_height - 2,
-            ),
-        )
+    @type.setter
+    def type(self, new_type):
+        # Banned operation
+        if new_type.unique and self._type is not TYPES.DEFAULT:
+            print(f"Cannot allocate {new_type} for {self._type} box")
+            return
+
+        # Change the unique type
+        if self._type.unique:
+            if new_type in (TYPES.VISITED, TYPES.PATH, TYPES.QUEUED):
+                return
+            self._type.box = None
+
+        # Set a unique type
+        if new_type.unique:
+            if new_type.box is not None:
+                new_type.box._type = TYPES.DEFAULT
+            new_type.box = self
+
+        self._type = new_type
+
+
+class Game:
+    def __init__(self, window, columns=20, rows=20):
+        self.window = window
+        self.columns = columns
+        self.rows = rows
+
+        Box.width = window.get_width() // columns
+        Box.height = window.get_height() // rows
+
+        # Create Grid
+        self.grid = np.array([[Box(i, j) for j in range(rows)] for i in range(columns)])
+
+    def set_neighbors(self):
+        for box in self.grid.ravel():
+            candidates = []
+            if box.i > 0:
+                candidates.append(self.grid[box.i - 1][box.j])
+            if box.i < self.columns - 1:
+                candidates.append(self.grid[box.i + 1][box.j])
+            if box.j > 0:
+                candidates.append(self.grid[box.i][box.j - 1])
+            if box.j < self.rows - 1:
+                candidates.append(self.grid[box.i][box.j + 1])
+            for candidate in candidates:
+                if candidate.type is not TYPES.WALL:
+                    box.neighbors.append(candidate)
+
+    def reset(self):
+        for box in self.grid.ravel():
+            box.type = TYPES.DEFAULT
+
+    def draw(self):
+        for box in self.grid.ravel():
+            # Draw a box
+            pygame.draw.rect(
+                self.window,
+                self.type.color,
+                (
+                    box.i * Box.width,
+                    box.j * Box.height,
+                    Box.width - 2,
+                    Box.height - 2,
+                ),
+            )
+
+        pygame.display.update()
+
+    def __call__(self, x, y):
+        i = x // Box.width
+        j = y // Box.height
+        return self.grid[i][j]
 
 
 class Dijkstra:
-    def __init__(self):
-        pass
+    def __init__(self, game):
+        self.game = game
+        self.reset()
+
+    def reset(self):
+        self.queue = []
+        self.path = []
+        self.visited = []
+
+    def run(self):
+        self.queue.append(TYPES.START.box)
+        finished = False
+
+        while len(self.queue) > 0 and not finished:
+            self.game.draw()
+
+            current_box = self.queue.pop(0)
+            current_box.type = TYPES.VISITED
+            self.visited.append(current_box)
+
+            if current_box is TYPES.TARGET.box:
+                finished = True
+
+                # Draw Path
+                while current_box.prior is not TYPES.START.box:
+                    self.path.append(current_box.prior)
+                    current_box.prior.type = TYPES.PATH
+                    current_box = current_box.prior
+            else:
+                for neighbor in current_box.neighbors:
+                    if neighbor not in self.visited and neighbor not in self.queue:
+                        neighbor.prior = current_box
+                        neighbor.type = TYPES.QUEUED
+                        self.queue.append(neighbor)
+
+        if not finished:
+            print("No solution found")
+
+        print("Exiting Dijkstra algorithm")
 
 
 def main():
-    # Create Grid
-    box_grid = np.array([[Box(i, j) for j in range(rows)] for i in range(columns)])
+    # PYGAME INITIALIZE
+    pygame.init()
+    window = pygame.display.set_mode((400, 400))
 
-    # Set Neighbours
-    for box in box_grid.ravel():
-        if box.i > 0:
-            box.neighbors.append(box_grid[box.i - 1][box.j])
-        if box.i < columns - 1:
-            box.neighbors.append(box_grid[box.i + 1][box.j])
-        if box.j > 0:
-            box.neighbors.append(box_grid[box.i][box.j - 1])
-        if box.j < rows - 1:
-            box.neighbors.append(box_grid[box.i][box.j + 1])
-
-    def get_box(x, y):
-        i = x // box_width
-        j = y // box_height
-        return box_grid[i][j]
-
-    queue = []
-    path = []
-
-    start_box = box_grid[0][0]
-    start_box.tags = ["start", "visited"]
-    queue.append(start_box)
-
-    begin_search = False
-    searching = True
-    target_box = None
+    game = Game(window)
+    algorithm = Dijkstra(game)
 
     done = False
-
     while not done:
         window.fill((0, 0, 0))
 
@@ -108,77 +171,34 @@ def main():
 
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    game_map.reset()
+                    game.reset()
+                    algorithm.reset()
 
                 elif event.key == pygame.K_RETURN:
                     print("Start Algorithm")
-                    algorithm.run(game_map)
+                    game.set_neighbors()
+                    algorithm.run()
 
-            elif pygame.key.get_mods() and pygame.KMOD_SHIFT:
+            elif pygame.key.get_mods() & pygame.KMOD_SHIFT:
                 if pygame.mouse.get_pressed()[0]:
                     x, y = pygame.mouse.get_pos()
-                    game_map(x, y).state = Box.STATE.START
+                    game(x, y).type = TYPES.START
 
-            elif pygame.key.get_mods() and pygame.KMOD_CTRL:
+            elif pygame.key.get_mods() & pygame.KMOD_CTRL:
                 if pygame.mouse.get_pressed()[0]:
                     x, y = pygame.mouse.get_pos()
-                    game_map(x, y).state = Box.STATE.END
+                    game(x, y).type = TYPES.TARGET
 
             elif pygame.mouse.get_pressed()[0]:
                 x, y = pygame.mouse.get_pos()
-                game_map(x, y).state = Box.STATE.WALL
+                game(x, y).type = TYPES.WALL
 
-            mouse = pygame.mouse.get_pressed()
-            keys = pygame.key.get_pressed()
-
-            # MOUSE CONTROLS
-            if mouse[0]:
+            elif pygame.mouse.get_pressed()[2]:
                 x, y = pygame.mouse.get_pos()
-
-                # Draw Wall
-                if keys[pygame.K_w]:
-                    get_box(x, y).tags.append("wall")
-
-                # Set Target
-                if keys[pygame.K_t]:
-                    if target_box is not None:
-                        target_box.tags.remove("target")
-                    target_box = get_box(x, y)
-                    target_box.tags.append("target")
-
-            # Start Algorithm
-            if keys[pygame.K_RETURN] and target_box is not None:
-                begin_search = True
-
-        if begin_search:
-            if len(queue) > 0 and searching:
-                current_box = queue.pop(0)
-                current_box.tags.append("visited")
-                if current_box == target_box:
-                    searching = False
-                    while current_box.prior != start_box:
-                        path.append(current_box.prior)
-                        current_box.prior.tags.append("path")
-                        current_box = current_box.prior
-                else:
-                    for neighbor in current_box.neighbors:
-                        if (
-                            not "queued" in neighbor.tags
-                            and not "wall" in neighbor.tags
-                        ):
-                            neighbor.prior = current_box
-                            neighbor.tags.append("queued")
-                            queue.append(neighbor)
-            else:
-                searching = False
+                game(x, y).type = TYPES.DEFAULT
 
         # DRAW BOXES
-        for box in box_grid.ravel():
-            box.draw()
-
-        pygame.display.flip()
-
-        clock.tick(120)
+        game.draw()
 
     pygame.quit()
 
