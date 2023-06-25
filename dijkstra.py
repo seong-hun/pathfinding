@@ -1,5 +1,6 @@
-from itertools import chain
+from dataclasses import dataclass
 
+import numpy as np
 import pygame
 
 window_width = 400
@@ -16,8 +17,14 @@ window = pygame.display.set_mode((window_width, window_height))
 clock = pygame.time.Clock()
 
 
+@dataclass
+class WALL:
+    color = (120, 120, 12)
+
+
 class Box:
-    colormap = {
+    STATE = States()
+    BOXCOLORS = {
         "default": (80, 80, 80),
         "queued": (200, 0, 0),
         "visited": (0, 200, 0),
@@ -36,8 +43,8 @@ class Box:
         self.prior = None
 
     def draw(self):
-        color = self.colormap["default"]
-        for key, value in self.colormap.items():
+        color = self.BOXCOLORS["default"]
+        for key, value in self.BOXCOLORS.items():
             if key in self.tags:
                 color = value
 
@@ -53,13 +60,17 @@ class Box:
         )
 
 
+class Dijkstra:
+    def __init__(self):
+        pass
+
+
 def main():
     # Create Grid
-    box_grid = [[Box(i, j) for j in range(rows)] for i in range(columns)]
-    boxes = list(chain.from_iterable(box_grid))
+    box_grid = np.array([[Box(i, j) for j in range(rows)] for i in range(columns)])
 
     # Set Neighbours
-    for box in boxes:
+    for box in box_grid.ravel():
         if box.i > 0:
             box.neighbors.append(box_grid[box.i - 1][box.j])
         if box.i < columns - 1:
@@ -94,6 +105,28 @@ def main():
             # QUIT WINDOWS
             if event.type == pygame.QUIT:
                 done = True
+
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    game_map.reset()
+
+                elif event.key == pygame.K_RETURN:
+                    print("Start Algorithm")
+                    algorithm.run(game_map)
+
+            elif pygame.key.get_mods() and pygame.KMOD_SHIFT:
+                if pygame.mouse.get_pressed()[0]:
+                    x, y = pygame.mouse.get_pos()
+                    game_map(x, y).state = Box.STATE.START
+
+            elif pygame.key.get_mods() and pygame.KMOD_CTRL:
+                if pygame.mouse.get_pressed()[0]:
+                    x, y = pygame.mouse.get_pos()
+                    game_map(x, y).state = Box.STATE.END
+
+            elif pygame.mouse.get_pressed()[0]:
+                x, y = pygame.mouse.get_pos()
+                game_map(x, y).state = Box.STATE.WALL
 
             mouse = pygame.mouse.get_pressed()
             keys = pygame.key.get_pressed()
@@ -140,7 +173,7 @@ def main():
                 searching = False
 
         # DRAW BOXES
-        for box in boxes:
+        for box in box_grid.ravel():
             box.draw()
 
         pygame.display.flip()
