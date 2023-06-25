@@ -127,6 +127,12 @@ class Algorithm:
         self.path = []
         self.visited = []
 
+    def draw_path(self, current_box):
+        while current_box.prior is not TYPES.START.box:
+            self.path.append(current_box.prior)
+            current_box.prior.type = TYPES.PATH
+            current_box = current_box.prior
+
 
 class Dijkstra(Algorithm):
     def run(self):
@@ -155,11 +161,50 @@ class Dijkstra(Algorithm):
 
         print("Exiting Dijkstra algorithm")
 
-    def draw_path(self, current_box):
-        while current_box.prior is not TYPES.START.box:
-            self.path.append(current_box.prior)
-            current_box.prior.type = TYPES.PATH
-            current_box = current_box.prior
+
+class Astar(Algorithm):
+    def distance_to(self, box1, box2):
+        return abs(box1.i - box2.i) + abs(box1.j - box2.j)
+
+    def get_h(self, box1, box2):
+        return self.distance_to(box1, box2)
+
+    def set_f(self, box):
+        if box.type is TYPES.START:
+            box.g = 0
+        else:
+            box.g = box.prior.g + self.distance_to(box.prior, box)
+        box.f = box.g + self.get_h(box, TYPES.TARGET.box)
+
+    def run(self):
+        self.set_f(TYPES.START.box)
+        self.queue.append(TYPES.START.box)
+        finished = False
+
+        while len(self.queue) > 0 and not finished:
+            self.game.draw()
+
+            self.queue.sort(key=lambda box: box.f)
+
+            current_box = self.queue.pop(0)
+            current_box.type = TYPES.VISITED
+            self.visited.append(current_box)
+
+            if current_box is TYPES.TARGET.box:
+                finished = True
+                self.draw_path(current_box)
+            else:
+                for neighbor in current_box.neighbors:
+                    if neighbor not in self.visited and neighbor not in self.queue:
+                        neighbor.prior = current_box
+                        self.set_f(neighbor)
+                        neighbor.type = TYPES.QUEUED
+                        self.queue.append(neighbor)
+
+        if not finished:
+            print("No solution found")
+
+        print("Exiting A* algorithm")
 
 
 def main():
@@ -168,7 +213,7 @@ def main():
     window = pygame.display.set_mode((400, 400))
 
     game = Game(window)
-    algorithm = Dijkstra(game)
+    algorithm = Astar(game)
 
     done = False
     while not done:
