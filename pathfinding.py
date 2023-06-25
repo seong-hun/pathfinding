@@ -1,5 +1,3 @@
-import sys
-import time
 from itertools import chain
 
 import pygame
@@ -55,11 +53,6 @@ class Box:
         )
 
 
-def text_objects(text, font):
-    textSurface = font.render(text, True, (0, 200, 0))
-    return textSurface, textSurface.get_rect()
-
-
 def main():
     # Create Grid
     box_grid = [[Box(i, j) for j in range(rows)] for i in range(columns)]
@@ -95,45 +88,34 @@ def main():
     done = False
 
     while not done:
+        window.fill((0, 0, 0))
+
         for event in pygame.event.get():
             # QUIT WINDOWS
             if event.type == pygame.QUIT:
                 done = True
 
-            elif event.type == pygame.KEYDOWN:
+            mouse = pygame.mouse.get_pressed()
+            keys = pygame.key.get_pressed()
+
+            # MOUSE CONTROLS
+            if mouse[0]:
                 x, y = pygame.mouse.get_pos()
 
-                # Set a wall
-                if event.key == pygame.K_w:
+                # Draw Wall
+                if keys[pygame.K_w]:
                     get_box(x, y).tags.append("wall")
 
-                # Set a target
-                elif event.key == pygame.K_t:
+                # Set Target
+                if keys[pygame.K_t]:
                     if target_box is not None:
                         target_box.tags.remove("target")
                     target_box = get_box(x, y)
                     target_box.tags.append("target")
 
-        x, y = pygame.mouse.get_pos()
-        mouse = pygame.mouse.get_pressed()
-        keys = pygame.key.get_pressed()
-
-        # MOUSE CONTROLS
-        if mouse == (1, 0, 0):
-            # Draw Wall
-            if keys[pygame.K_w]:
-                get_box(x, y).tags.append("wall")
-
-            # Set Target
-            if keys[pygame.K_t]:
-                if target_box is not None:
-                    target_box.tags.remove("target")
-                target_box = get_box(x, y)
-                target_box.tags.append("target")
-
-        # Start Algorithm
-        if keys[pygame.K_RETURN] and target_box is not None:
-            begin_search = True
+            # Start Algorithm
+            if keys[pygame.K_RETURN] and target_box is not None:
+                begin_search = True
 
         if begin_search:
             if len(queue) > 0 and searching:
@@ -155,22 +137,7 @@ def main():
                             neighbor.tags.append("queued")
                             queue.append(neighbor)
             else:
-                if searching:
-                    red = (255, 0, 0)
-                    black = (0, 0, 0)
-
-                    font = pygame.font.SysFont("times new roman", 40)
-                    text = font.render("GAME OVER", True, red)
-
-                    text_rect = text.get_rect()
-                    text_rect.center = (window_width / 2, window_height / 2)
-
-                    window.fill(black)
-                    window.blit(text, text_rect)
-
-                    searching = False
-
-        window.fill((0, 0, 0))
+                searching = False
 
         # DRAW BOXES
         for box in boxes:
