@@ -2,4 +2,4 @@
 
 ## List of Tutorials
 
-- [Tutorial 01 - Path Fidning](tutorial-01)
+- [Tutorial 01 - Path Finding](tutorial-01)
