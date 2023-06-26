@@ -15,8 +15,8 @@ class Type:
 
 
 class TYPES:
-    DEFAULT = Type("DEFAULT", (80, 80, 80))
-    WALL = Type("WALL", (120, 120, 120), immutable=True)
+    DEFAULT = Type("DEFAULT", (50, 50, 50))
+    WALL = Type("WALL", (90, 90, 90), immutable=True)
     START = Type("START", (0, 200, 200), unique=True, immutable=True)
     TARGET = Type("TARGET", (200, 200, 0), unique=True, immutable=True)
     QUEUED = Type("QUEUED", (200, 0, 0), algorithm=True)
