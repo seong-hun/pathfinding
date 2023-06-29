@@ -14,7 +14,7 @@ This tutorial provides visualization of path finding algorithms such as [Dijkstr
 - [Pygame](https://www.pygame.org/news)
 - [NumPy](https://numpy.org)
 
-## How to Run?
+## How to run?
 
 Run the following command.
 
