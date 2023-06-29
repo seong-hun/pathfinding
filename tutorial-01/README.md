@@ -5,6 +5,11 @@ This tutorial provides visualization of path finding algorithms such as [Dijkstr
 *Sources:*
 - Max Teaches Tech's [Python Pathfinding Vizualisation](https://www.youtube.com/watch?v=QNpUN8gBeLY&t=844s)
 
+## Preview
+
+![ezgif com-resize](https://github.com/seong-hun/python-tutorials/assets/9782545/c1d4746c-6ceb-4b2e-9802-1f3cbc9a99a9)
+
+
 ## Requirements
 
 - [Pygame](https://www.pygame.org/news)
