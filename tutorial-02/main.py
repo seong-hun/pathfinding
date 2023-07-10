@@ -1,15 +1,39 @@
+from dataclasses import dataclass
+
 import fym
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy import cos, sin, tan
-from scipy.integrate import solve_ivp
 from scipy.spatial.transform import Rotation
 
 
-class PID(fym.BaseSystem):
-    def __init__(self):
-        super().__init__()
+class Controller:
+    def set_dot(self, plant):
+        raise NotImplementedError
 
+
+class PD(Controller):
+    def set_dot(self, plant):
+        pos = plant.pos.state
+        vel = plant.vel.state
+
+        z = pos[2]
+        vz = vel[2]
+
+        zd = -1
+        vzd = 0
+
+        Kp = 10
+        Kd = 5
+
+        fc0 = plant.m * plant.g
+        fc = fc0 + Kp * (z - zd) + Kd * (vz - vzd)
+        u = np.linalg.pinv(plant.B) @ np.vstack((fc, 0, 0, 0))
+
+        return u
+
+
+class PID(Controller, fym.BaseSystem):
     def set_dot(self, plant):
         pos = plant.pos.state
         vel = plant.vel.state
@@ -25,11 +49,13 @@ class PID(fym.BaseSystem):
         Kp = 10
         Kd = 5
         Ki = 3
+
         fc0 = plant.m * plant.g
         fc = fc0 + Kp * (z - zd) + Kd * (vz - vzd) + Ki * ei
         u = np.linalg.pinv(plant.B) @ np.vstack((fc, 0, 0, 0))
 
         self.dot = z - zd
+
         return u
 
 
@@ -88,7 +114,7 @@ class Env(fym.BaseEnv):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.plant = Quadrotor()
-        self.controller = PID()
+        self.controller = Controller()
 
     def set_dot(self, t):
         u = self.controller.set_dot(self.plant)
@@ -96,26 +122,64 @@ class Env(fym.BaseEnv):
         return {"t": t, **pinfo}
 
 
-env = Env(dt=0.01, max_t=10)
-env.logger = fym.Logger(mode="stop")
+def run(env, controller_cls):
+    env = Env(dt=0.01, max_t=10)
+    env.controller = controller_cls()
+    env.logger = fym.Logger(mode="stop")
 
-while True:
-    env.render()
+    while True:
+        env.render()
 
-    _, done = env.update()
+        _, done = env.update()
 
-    if done:
-        break
+        if done:
+            break
+
+    return env.logger.buffer
 
 
-t = env.logger.buffer["t"]
-pos = env.logger.buffer["pos"]
-omega = env.logger.buffer["omega"]
+def plot_exps(exps):
+    plt.figure()
 
-plt.figure()
-plt.plot(t, -pos[:, 2], label="z")
+    for exp in exps:
+        t = exp.data["t"]
+        pos = exp.data["pos"]
+        plt.plot(t, -pos[:, 2], **exp.style)
 
-plt.figure()
-plt.plot(t, omega[:, 0], label="p")
+    plt.legend()
 
-plt.show()
+    plt.figure()
+
+    for exp in exps:
+        t = exp.data["t"]
+        omega = exp.data["omega"]
+        plt.plot(t, omega[:, 0], **exp.style)
+
+    plt.legend()
+
+    plt.show()
+
+
+@dataclass
+class Exp:
+    env: Env
+    controller_cls: ...
+    data: ... = None
+    style: ... = None
+
+
+def main():
+    env = Env()
+    exps = [
+        Exp(env, PID, style={"label": "PID", "c": "k"}),
+        Exp(env, PD, style={"label": "PD", "c": "r", "ls": "--"}),
+    ]
+
+    for exp in exps:
+        exp.data = run(exp.env, exp.controller_cls)
+
+    plot_exps(exps)
+
+
+if __name__ == "__main__":
+    main()
