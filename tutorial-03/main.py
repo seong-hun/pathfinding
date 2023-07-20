@@ -2,11 +2,13 @@
 Test Scripts
 """
 
+from element import Quaternion
 from transform import Rotation
 
 
 def test_create_quaternion():
-    pass
+    q1 = Quaternion(1, 0, 0, 0)
+    q2 = Quaternion(0, 1, 0, 0)
 
 
 def test_repr_quaternion():
